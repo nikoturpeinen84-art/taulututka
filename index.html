@@ -62,12 +62,14 @@ input[type=range]{width:100%;accent-color:var(--acc)}
 #calibPanel{display:none;gap:8px;margin-top:8px}
 #calibPanel.show{display:flex}
 #calibPanel button{flex:1;min-height:46px}
+#tune{display:none;margin-top:8px;padding:10px;border:1px solid var(--acc);border-radius:12px;background:var(--panel)}
+#tune.show{display:block}
+#tune .tg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+#tune button{min-height:44px;font-size:18px}
+#tune .lbl{font-size:13px;color:var(--mut)}
+#lockBtn{position:absolute;left:8px;top:8px;display:none;min-height:auto;padding:7px 11px;flex-direction:row;gap:6px;font-size:13px;background:rgba(15,20,18,.85)}
+#lockBtn.on{border-color:var(--ok);color:var(--ok)}
 </style>
-<link rel="apple-touch-icon" href="icon-180.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Taulututka">
 </head>
 <body>
 <header>
@@ -80,6 +82,7 @@ input[type=range]{width:100%;accent-color:var(--acc)}
     <canvas id="stage" width="720" height="540"></canvas>
     <div id="empty"><b>Valmiina.</b>Kiinnitä puhelin kaukoputkeen ja paina <b>Kamera</b>, tai ota kuva taulusta painamalla <b>Kuva</b>.<span class="muted">Toimii tavallisilla valkomustilla tauluilla.</span></div>
     <div id="modeHint"></div>
+    <button id="lockBtn">🔓 Lukitse tarkennus</button>
     <div id="camZoomWrap">Optinen zoom <input id="camZoom" type="range"></div>
     <div id="zoomCtl"><button id="zIn">+</button><button id="zOut">−</button><button id="zFit" title="Keskitä tauluun">⌖</button></div>
   </div>
@@ -97,6 +100,14 @@ input[type=range]{width:100%;accent-color:var(--acc)}
   <div id="calibPanel">
     <button id="calAuto" class="primary">Automaattinen</button>
     <button id="calMan">Käsin: keskipiste + mustan reuna</button>
+    <button id="calTune">Hienosäädä</button>
+  </div>
+  <div id="tune">
+    <div class="lbl">Hienosäätö: siirrä renkaita, kunnes ne osuvat taulun renkaisiin. <span id="tuneInfo"></span></div>
+    <div class="tg">
+      <button data-t="left">←</button><button data-t="up">↑</button><button data-t="down">↓</button><button data-t="right">→</button>
+      <button data-t="smaller">−</button><button data-t="bigger">+</button><button data-t="fine" id="tFine">Askel: pieni</button><button data-t="done" class="primary">Valmis</button>
+    </div>
   </div>
   <input id="file" type="file" accept="image/*" capture="environment" hidden>
 
@@ -143,6 +154,8 @@ input[type=range]{width:100%;accent-color:var(--acc)}
     <div><label>Analyysitarkkuus</label><select id="oRes"><option value="480">480 px (nopea)</option><option value="720">720 px</option><option value="960">960 px (tarkka)</option></select></div>
     <div><label>Tarkistusväli</label><select id="oInt"><option value="400">0,4 s</option><option value="700">0,7 s</option><option value="1200">1,2 s</option></select></div>
   </div>
+  <label>Osuman vahvistus (live)</label>
+  <select id="oConf"><option value="2">2 peräkkäistä ruutua (nopea)</option><option value="3">3 peräkkäistä ruutua (tuulinen keli, heiluva jalusta)</option></select>
   <label class="chk"><input type="checkbox" id="oFlip"> Kuva on ylösalaisin (käännä suunnat 180°)</label>
   <label class="chk"><input type="checkbox" id="oSpeak"> Lue tulos ääneen</label>
   <label class="chk"><input type="checkbox" id="oBeep"> Äänimerkki ja värinä osumasta</label>
@@ -156,7 +169,8 @@ input[type=range]{width:100%;accent-color:var(--acc)}
 <ol>
 <li><b>Kiinnitä puhelin kaukoputkeen</b> adapterilla ja keskitä taulu kuvaan. Zoomaa niin, että koko taulu mahtuu ruutuun ja täyttää sen mahdollisimman hyvin.</li>
 <li>Paina <b>Kamera</b> (live-seuranta) tai <b>Kuva</b> (otat kuvan jokaisen laukauksen tai sarjan jälkeen).</li>
-<li>Paina <b>Kalibroi → Automaattinen</b>. Sovellus etsii taulun mustan alueen ja piirtää renkaat. Jos ne eivät osu, valitse <b>Käsin</b> ja napauta ensin keskipistettä, sitten mustan alueen reunaa.</li>
+<li>Live-tilassa tarkenna kaukoputki teräväksi ja paina kuvan vasemmasta yläkulmasta <b>Lukitse tarkennus</b>, jolloin puhelimen automatiikka ei muuta tarkennusta tai valotusta kesken sarjan.</li>
+<li>Paina <b>Kalibroi → Automaattinen</b>. Sovellus etsii taulun mustan alueen (myös vinosta kuvattuna soikean) ja piirtää renkaat. Hienosäädä tarvittaessa nuolilla ja ± -napeilla, kunnes renkaat osuvat taulun renkaisiin. Jos automatiikka ei löydä taulua, valitse <b>Käsin</b>.</li>
 <li>Ammu. Uusi reikä tunnistetaan vertaamalla kuvaa edelliseen: valkoisella alueella reikä tummuu ja mustalla vaalenee, joten kumpikin löytyy.</li>
 <li>Väärän tunnistuksen voi poistaa (<b>Poista osuma</b>) ja puuttuvan voi lisätä napauttamalla (<b>Lisää osuma</b>).</li>
 </ol>
@@ -384,25 +398,85 @@ var TTCore = (function () {
     return t;
   }
 
-  // Etsii taulun mustan tähtäinalueen: palauttaa {cx, cy, r} tai null
+  function labelComponents(m, w, h) {
+    var lab = new Int32Array(w * h), out = [], stack = [], id = 0;
+    for (var i = 0; i < w * h; i++) {
+      if (!m[i] || lab[i]) continue;
+      id++; stack.push(i); lab[i] = id;
+      var area = 0, x0 = w, x1 = 0, y0 = h, y1 = 0;
+      while (stack.length) {
+        var p = stack.pop(), x = p % w, y = (p - x) / w;
+        area++;
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+        if (x > 0 && m[p - 1] && !lab[p - 1]) { lab[p - 1] = id; stack.push(p - 1); }
+        if (x < w - 1 && m[p + 1] && !lab[p + 1]) { lab[p + 1] = id; stack.push(p + 1); }
+        if (y > 0 && m[p - w] && !lab[p - w]) { lab[p - w] = id; stack.push(p - w); }
+        if (y < h - 1 && m[p + w] && !lab[p + w]) { lab[p + w] = id; stack.push(p + w); }
+      }
+      out.push({ id: id, area: area, x0: x0, x1: x1, y0: y0, y1: y1, bw: x1 - x0 + 1, bh: y1 - y0 + 1 });
+    }
+    return { lab: lab, comps: out };
+  }
+
+  /* Sovittaa ellipsin mustaan alueeseen (täytetty komponentti, toiset momentit).
+     Korjaa vinosta kuvakulmasta tai kallellaan olevasta taulusta johtuvan litistymän. */
+  function fitEllipse(lab, id, c, w, h) {
+    var X0 = Math.max(0, c.x0 - 1), X1 = Math.min(w - 1, c.x1 + 1), Y0 = Math.max(0, c.y0 - 1), Y1 = Math.min(h - 1, c.y1 + 1);
+    var LW = X1 - X0 + 1, LH = Y1 - Y0 + 1, ext = new Uint8Array(LW * LH), st = [], x, y;
+    function push(x, y) { var j = y * LW + x; if (ext[j] || lab[(y + Y0) * w + x + X0] === id) return; ext[j] = 1; st.push(j); }
+    for (x = 0; x < LW; x++) { push(x, 0); push(x, LH - 1); }
+    for (y = 0; y < LH; y++) { push(0, y); push(LW - 1, y); }
+    while (st.length) {
+      var j = st.pop(), lx = j % LW, ly = (j - lx) / LW;
+      if (lx > 0) push(lx - 1, ly); if (lx < LW - 1) push(lx + 1, ly);
+      if (ly > 0) push(lx, ly - 1); if (ly < LH - 1) push(lx, ly + 1);
+    }
+    var n = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
+    for (y = 0; y < LH; y++) for (x = 0; x < LW; x++) if (!ext[y * LW + x]) {
+      var gx = x + X0, gy = y + Y0; n++; sx += gx; sy += gy; sxx += gx * gx; syy += gy * gy; sxy += gx * gy;
+    }
+    var mx = sx / n, my = sy / n, vxx = sxx / n - mx * mx, vyy = syy / n - my * my, vxy = sxy / n - mx * my;
+    var tr = (vxx + vyy) / 2, dd = Math.sqrt(((vxx - vyy) / 2) * ((vxx - vyy) / 2) + vxy * vxy);
+    var a = 2 * Math.sqrt(tr + dd), b = 2 * Math.sqrt(Math.max(1e-6, tr - dd)), th = 0.5 * Math.atan2(2 * vxy, vxx - vyy);
+    return { cx: mx, cy: my, a: a, b: b, th: th, r: (a + b) / 2 };
+  }
+
+  // Etsii taulun mustan tähtäinalueen: palauttaa ellipsin {cx, cy, a, b, th, r} tai null
   function findBullseye(g, w, h) {
     var n = w * h, t = otsu(g, n), m = new Uint8Array(n), i;
     for (i = 0; i < n; i++) m[i] = g[i] < t ? 1 : 0;
     // sulje mustan sisällä olevat valkoiset rengasviivat
     m = dilate(dilate(m, w, h), w, h); m = erode(erode(m, w, h), w, h);
-    var comps = components(m, w, h, Math.max(50, n * 0.002)), best = null, bs = 0;
+    var L = labelComponents(m, w, h), minA = Math.max(50, n * 0.002), best = null, bs = 0;
     var diag = Math.sqrt(w * w + h * h);
-    for (var k = 0; k < comps.length; k++) {
-      var c = comps[k];
+    for (var k = 0; k < L.comps.length; k++) {
+      var c = L.comps[k];
+      if (c.area < minA) continue;
       if (c.x0 <= 1 || c.y0 <= 1 || c.x1 >= w - 2 || c.y1 >= h - 2) continue;
       var fill = c.area / (c.bw * c.bh), asp = Math.min(c.bw, c.bh) / Math.max(c.bw, c.bh);
-      if (asp < 0.7 || fill < 0.5 || fill > 0.95) continue;
+      if (asp < 0.6 || fill < 0.5 || fill > 0.95) continue;
       var mx = (c.x0 + c.x1) / 2, my = (c.y0 + c.y1) / 2;
       var dc = Math.sqrt((mx - w / 2) * (mx - w / 2) + (my - h / 2) * (my - h / 2)) / diag;
       var s = c.area * (1 - Math.abs(fill - 0.785)) * asp * (1 - dc);
-      if (s > bs) { bs = s; best = { cx: mx, cy: my, r: (c.bw + c.bh) / 4 }; }
+      if (s > bs) { bs = s; best = c; }
     }
-    return best;
+    if (!best) return null;
+    var e = fitEllipse(L.lab, best.id, best, w, h);
+    if (!(e.a > 2 && e.b > 2) || e.b / e.a < 0.6) return { cx: (best.x0 + best.x1) / 2, cy: (best.y0 + best.y1) / 2, a: (best.bw + best.bh) / 4, b: (best.bw + best.bh) / 4, th: 0, r: (best.bw + best.bh) / 4 };
+    return e;
+  }
+
+  /* Kalibrointi: cal = {cx, cy, a, b, th} (mustan reunan ellipsi pikseleinä), R = mustan säde mm.
+     Palauttaa mm-koordinaatit (x oikealle, y ylös). */
+  function pxToMm(cal, R, px, py) {
+    var dx = px - cal.cx, dy = py - cal.cy, c = Math.cos(cal.th), s = Math.sin(cal.th);
+    var u = (dx * c + dy * s) * R / cal.a, v = (-dx * s + dy * c) * R / cal.b;
+    return { x: u * c - v * s, y: -(u * s + v * c) };
+  }
+  function mmToPx(cal, R, x, y) {
+    var Y = -y, c = Math.cos(cal.th), s = Math.sin(cal.th);
+    var u = (x * c + Y * s) * cal.a / R, v = (-x * s + Y * c) * cal.b / R;
+    return { x: cal.cx + u * c - v * s, y: cal.cy + u * s + v * c };
   }
 
   // Taulut: halkaisijat millimetreinä (ISSF-mitat)
@@ -445,7 +519,7 @@ var TTCore = (function () {
   }
 
   return { toGray: toGray, blur: blur, roiMask: roiMask, normalize: normalize, estimateShift: estimateShift,
-    detect: detect, findBullseye: findBullseye, PRESETS: PRESETS, ringRadius: ringRadius, score: score,
+    detect: detect, findBullseye: findBullseye, pxToMm: pxToMm, mmToPx: mmToPx, PRESETS: PRESETS, ringRadius: ringRadius, score: score,
     clockOf: clockOf, groupStats: groupStats, otsu: otsu };
 })();
 if (typeof module !== 'undefined') module.exports = TTCore;
@@ -458,13 +532,14 @@ var C = TTCore, $ = function(id){return document.getElementById(id);};
 var LS = { get:function(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},
            set:function(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}} };
 
-var S = Object.assign({ target:'issf50', cal:5.6, dist:50, thr:45, res:720, interval:700, flip:false, speak:true, beep:true,
+var S = Object.assign({ target:'issf50', cal:5.6, dist:50, thr:45, res:720, interval:700, flip:false, speak:true, beep:true, confirm:2,
   custom:{ring10:10.4,step:16,black:112.4,inner:5} }, LS.get('tt_settings',{}));
 
 var st = {
   source:null, srcW:0, srcH:0, live:false, stream:null, track:null,
   aw:0, ah:0, ref:null, prev:null, pending:null, quiet:0, bigCount:0, busy:false,
-  calib:null,           // {cx, cy, ppm} analyysikoordinaateissa
+  calib:null,           // {cx, cy, a, b, th}: mustan reunan ellipsi analyysipikseleinä
+  locked:false, tuneStep:0.5,
   shots:[], mode:'none', calTmp:null,
   view:{z:1,cx:0,cy:0}, timer:null, wake:null
 };
@@ -482,7 +557,7 @@ function hint(m){ var h=$('modeHint'); h.textContent=m||''; h.style.display=m?'b
 /* ---------- kuvan nouto ---------- */
 function setupWork(w,h){
   var aw=+S.res, ah=Math.round(aw*h/w);
-  if(st.aw && (st.aw!==aw || st.ah!==ah) && st.calib){ var k=aw/st.aw; st.calib={cx:st.calib.cx*k,cy:st.calib.cy*k,ppm:st.calib.ppm*k}; }
+  if(st.aw && (st.aw!==aw || st.ah!==ah)){ var k=aw/st.aw; if(st.calib){ st.calib={cx:st.calib.cx*k,cy:st.calib.cy*k,a:st.calib.a*k,b:st.calib.b*k,th:st.calib.th}; } st.shots.forEach(function(s){s.px*=k;s.py*=k;}); }
   if(st.aw!==aw||st.ah!==ah){ st.ref=null; st.prev=null; st.view={z:1,cx:aw/2,cy:ah/2}; }
   st.aw=aw; st.ah=ah; work.width=aw; work.height=ah;
   cv.width=aw; cv.height=ah;
@@ -505,7 +580,7 @@ async function startCamera(){
     st.srcW=v.videoWidth; st.srcH=v.videoHeight; setupWork(st.srcW,st.srcH);
     st.ref=null; st.pending=null;
     $('empty').style.display='none'; $('bCam').classList.add('on'); $('bCam').lastChild.textContent='Pysäytä';
-    status('Live','live'); setupCamZoom(); keepAwake();
+    status('Live','live'); setupCamZoom(); keepAwake(); st.locked=false; updateLockBtn(); $('lockBtn').style.display='flex';
     st.timer=setInterval(tick,+S.interval);
     if(!st.calib) setTimeout(function(){ autoCalib(true); },900);
   }catch(e){ toast('Kameraa ei saatu auki ('+(e.name||e)+'). Käytä Kuva-tilaa tai avaa sovellus https-osoitteesta.',6000); }
@@ -516,7 +591,7 @@ function stopCamera(){
   // pidä viimeinen ruutu näkyvissä
   var snap=document.createElement('canvas'); snap.width=st.aw; snap.height=st.ah; snap.getContext('2d').drawImage(work,0,0);
   st.source=snap; st.live=false; st.stream=null; st.track=null;
-  $('bCam').classList.remove('on'); $('bCam').lastChild.textContent='Kamera'; $('camZoomWrap').style.display='none';
+  $('bCam').classList.remove('on'); $('bCam').lastChild.textContent='Kamera'; $('camZoomWrap').style.display='none'; $('lockBtn').style.display='none';
   status('Pysäytetty'); if(st.wake){try{st.wake.release();}catch(e){} st.wake=null;}
 }
 function setupCamZoom(){
@@ -530,14 +605,18 @@ function setupCamZoom(){
 async function keepAwake(){ try{ if(navigator.wakeLock) st.wake=await navigator.wakeLock.request('screen'); }catch(e){} }
 
 /* ---------- kalibrointi ---------- */
-function roi(){ if(!st.calib) return null; var t=target(); return {cx:st.calib.cx,cy:st.calib.cy,r:Math.min(Math.max(st.aw,st.ah), C.ringRadius(t,1)*st.calib.ppm*1.06+6)}; }
+function Rmm(){ return target().black/2; }
+function ppm(){ return st.calib ? (st.calib.a+st.calib.b)/2/Rmm() : 0; }
+function roi(){ if(!st.calib) return null; var t=target(); return {cx:st.calib.cx,cy:st.calib.cy,r:Math.min(Math.max(st.aw,st.ah), C.ringRadius(t,1)*Math.max(st.calib.a,st.calib.b)/Rmm()*1.06+6)}; }
 function autoCalib(silentFail){
   var g=grab(); if(!g){ toast('Avaa ensin kamera tai ota kuva.'); return; }
   var be=C.findBullseye(g,st.aw,st.ah);
   if(!be){ if(!silentFail) toast('Mustaa aluetta ei löytynyt. Kalibroi käsin.',4000); else toast('Kalibroi taulu: Kalibroi → Automaattinen tai Käsin.',4000); return false; }
-  st.calib={cx:be.cx,cy:be.cy,ppm:2*be.r/target().black};
-  st.ref=null; fitView(); toast('Kalibroitu ✓  Tarkista, että renkaat osuvat tauluun.');
-  recompute(); return true;
+  st.calib={cx:be.cx,cy:be.cy,a:be.a,b:be.b,th:be.th};
+  st.ref=null; fitView(); recompute(); showTune(true);
+  var obl=Math.round((1-be.b/be.a)*1000)/10;
+  toast('Kalibroitu ✓'+(obl>=0.5?' (taulu kuvassa '+String(obl).replace('.',',')+' % soikea – korjattu)':'')+'  Tarkista renkaat ja hienosäädä tarvittaessa.',5000);
+  return true;
 }
 function setMode(m){
   st.mode=m; ['bAdd','bDel'].forEach(function(id){$(id).classList.remove('on');});
@@ -549,7 +628,7 @@ function setMode(m){
 }
 
 /* ---------- tunnistus ---------- */
-function holePx(){ return st.calib ? S.cal*st.calib.ppm : 0; }
+function holePx(){ return st.calib ? S.cal*ppm() : 0; }
 function detectOpts(){ return { roi:roi(), thr:+S.thr, maxShift:Math.round(st.aw/40)+4, holePx:holePx() }; }
 
 function tick(){
@@ -566,8 +645,10 @@ function tick(){
       else status('Kuva liikkuu…','warn');
     } else if(r.blobs.length){
       st.bigCount=0;
-      if(st.pending && sameBlobs(st.pending,r.blobs)){ shiftCalib(r.shift); addDetected(r.blobs); st.ref=cur; st.pending=null; st.quiet=0; }
-      else st.pending=r.blobs;
+      if(st.pending && sameBlobs(st.pending.blobs,r.blobs)){
+        st.pending.n++;
+        if(st.pending.n>=(+S.confirm||2)){ shiftCalib(r.shift); addDetected(r.blobs); st.ref=cur; st.pending=null; st.quiet=0; }
+      } else st.pending={blobs:r.blobs,n:1};
       status('Live','live');
     } else {
       st.pending=null; st.bigCount=0; st.quiet++;
@@ -577,7 +658,7 @@ function tick(){
     st.prev=cur;
   } finally { st.busy=false; }
 }
-function shiftCalib(sh){ if(st.calib&&(sh.dx||sh.dy)){ st.calib.cx+=sh.dx; st.calib.cy+=sh.dy; } }
+function shiftCalib(sh){ if(st.calib&&(sh.dx||sh.dy)){ st.calib.cx+=sh.dx; st.calib.cy+=sh.dy; st.shots.forEach(function(s){s.px+=sh.dx;s.py+=sh.dy;}); } }
 function sameBlobs(a,b){
   var tol=Math.max(4,holePx()*0.6);
   return b.every(function(q){ return a.some(function(p){ return Math.hypot(p.x-q.x,p.y-q.y)<=tol; }); });
@@ -587,21 +668,20 @@ function addDetected(blobs){
   blobs.sort(function(a,b){return a.y-b.y;});
   var minSep = holePx()*0.35;
   blobs.forEach(function(b){
-    var p=pxToMm(b.x,b.y);
     // ei tuplia samaan kohtaan
-    if(st.shots.some(function(s){return Math.hypot(s.x-p.x,s.y-p.y)*st.calib.ppm<minSep;})) return;
-    pushShot(p.x,p.y,false);
+    if(st.shots.some(function(s){return Math.hypot(s.px-b.x,s.py-b.y)<minSep;})) return;
+    pushShot(b.x,b.y,false);
   });
 }
-function pxToMm(x,y){ return { x:(x-st.calib.cx)/st.calib.ppm, y:-(y-st.calib.cy)/st.calib.ppm }; }
-function mmToPx(x,y){ return { x:st.calib.cx+x*st.calib.ppm, y:st.calib.cy-y*st.calib.ppm }; }
+function pxToMm(x,y){ return C.pxToMm(st.calib,Rmm(),x,y); }
+function mmToPx(x,y){ return C.mmToPx(st.calib,Rmm(),x,y); }
 function oriented(s){ return S.flip?{x:-s.x,y:-s.y}:{x:s.x,y:s.y}; }
 
-function pushShot(x,y,manual){
-  var s={x:x,y:y,manual:manual,t:Date.now()}; scoreShot(s); st.shots.push(s);
+function pushShot(px,py,manual){
+  var s={px:px,py:py,manual:manual,t:Date.now()}; scoreShot(s); st.shots.push(s);
   render(); updateUI(); announce(s);
 }
-function scoreShot(s){ var r=C.score(Math.hypot(s.x,s.y),target(),+S.cal); s.ring=r.ring; s.dec=r.dec; s.X=r.x; }
+function scoreShot(s){ var m=pxToMm(s.px,s.py); s.x=m.x; s.y=m.y; var r=C.score(Math.hypot(s.x,s.y),target(),+S.cal); s.ring=r.ring; s.dec=r.dec; s.X=r.x; }
 function recompute(){ st.shots.forEach(scoreShot); updateUI(); }
 
 var actx;
@@ -636,7 +716,7 @@ $('file').onchange=function(e){
 
 /* ---------- piirto ---------- */
 function fitView(){
-  if(st.calib){ var r=C.ringRadius(target(),1)*st.calib.ppm*1.1; st.view={cx:st.calib.cx,cy:st.calib.cy,z:Math.max(1,Math.min(st.aw,st.ah)/(2*r))}; }
+  if(st.calib){ var r=C.ringRadius(target(),1)*Math.max(st.calib.a,st.calib.b)/Rmm()*1.1; st.view={cx:st.calib.cx,cy:st.calib.cy,z:Math.max(1,Math.min(st.aw,st.ah)/(2*r))}; }
   else st.view={z:1,cx:st.aw/2,cy:st.ah/2};
 }
 function viewT(){ var z=st.view.z; return {a:z,e:st.aw/2-st.view.cx*z,f:st.ah/2-st.view.cy*z}; }
@@ -647,13 +727,14 @@ function render(){
   if(st.source) ctx.drawImage(st.source,0,0,st.aw,st.ah);
   var lw=1/T.a;
   if(st.calib){
-    var t=target(), p=st.calib.ppm;
-    ctx.strokeStyle='rgba(56,211,224,.55)'; ctx.lineWidth=lw;
-    for(var k=1;k<=10;k++){ ctx.beginPath(); ctx.arc(st.calib.cx,st.calib.cy,C.ringRadius(t,k)*p,0,7); ctx.stroke(); }
+    var t=target(), p=ppm(), ka=st.calib.a/Rmm(), kb=st.calib.b/Rmm(), tuning=$('tune').classList.contains('show');
+    ctx.strokeStyle=tuning?'rgba(255,122,26,.95)':'rgba(56,211,224,.55)'; ctx.lineWidth=(tuning?1.5:1)*lw;
+    for(var k=1;k<=10;k++){ var rr=C.ringRadius(t,k); ctx.beginPath(); ctx.ellipse(st.calib.cx,st.calib.cy,rr*ka,rr*kb,st.calib.th,0,Math.PI*2); ctx.stroke(); }
+    ctx.beginPath(); ctx.ellipse(st.calib.cx,st.calib.cy,st.calib.a,st.calib.b,st.calib.th,0,Math.PI*2); ctx.setLineDash([4*lw,3*lw]); ctx.stroke(); ctx.setLineDash([]);
     ctx.strokeStyle='rgba(56,211,224,.9)'; ctx.beginPath(); ctx.moveTo(st.calib.cx-6*lw,st.calib.cy); ctx.lineTo(st.calib.cx+6*lw,st.calib.cy); ctx.moveTo(st.calib.cx,st.calib.cy-6*lw); ctx.lineTo(st.calib.cx,st.calib.cy+6*lw); ctx.stroke();
     var hr=Math.max(2*lw,S.cal*p/2);
     st.shots.forEach(function(s,i){
-      var q=mmToPx(s.x,s.y), last=i===st.shots.length-1;
+      var q={x:s.px,y:s.py}, last=i===st.shots.length-1;
       ctx.beginPath(); ctx.arc(q.x,q.y,hr,0,7); ctx.fillStyle=last?'rgba(255,122,26,.55)':'rgba(255,204,77,.35)'; ctx.fill();
       ctx.lineWidth=2*lw; ctx.strokeStyle=last?'#ff7a1a':'#ffcc4d'; ctx.stroke();
       ctx.font=(13*lw)+'px system-ui'; ctx.fillStyle='#fff'; ctx.strokeStyle='#000'; ctx.lineWidth=3*lw;
@@ -706,10 +787,10 @@ cv.addEventListener('pointerup',function(ev){
   var p=canvasPt(ev);
   if(st.mode==='calC'){ st.calTmp=p; setMode('calE'); render(); return; }
   if(st.mode==='calE'){ var r=Math.hypot(p.x-st.calTmp.x,p.y-st.calTmp.y); if(r<5){toast('Napauta kauempaa keskipisteestä.');return;}
-    st.calib={cx:st.calTmp.x,cy:st.calTmp.y,ppm:2*r/target().black}; st.calTmp=null; setMode('none'); st.ref=null; fitView(); recompute(); render(); toast('Kalibroitu käsin ✓'); return; }
+    st.calib={cx:st.calTmp.x,cy:st.calTmp.y,a:r,b:r,th:0}; st.calTmp=null; setMode('none'); st.ref=null; fitView(); recompute(); showTune(true); toast('Kalibroitu käsin ✓  Hienosäädä tarvittaessa.'); return; }
   if(!st.calib){ toast('Kalibroi ensin.'); return; }
-  if(st.mode==='add'){ var m=pxToMm(p.x,p.y); pushShot(m.x,m.y,true); setMode('none'); return; }
-  if(st.mode==='del'){ var best=-1,bd=1e9; st.shots.forEach(function(s,i){var q=mmToPx(s.x,s.y),d=Math.hypot(q.x-p.x,q.y-p.y); if(d<bd){bd=d;best=i;}});
+  if(st.mode==='add'){ pushShot(p.x,p.y,true); setMode('none'); return; }
+  if(st.mode==='del'){ var best=-1,bd=1e9; st.shots.forEach(function(s,i){var d=Math.hypot(s.px-p.x,s.py-p.y); if(d<bd){bd=d;best=i;}});
     if(best>=0 && bd<Math.max(14/st.view.z, holePx()*1.5)){ st.shots.splice(best,1); updateUI(); render(); toast('Osuma poistettu'); } else toast('Osumaa ei löytynyt siitä kohtaa');
     setMode('none'); }
 });
@@ -739,7 +820,7 @@ $('zFit').onclick=function(){ fitView(); render(); };
 /* asetukset */
 var sel=$('oTarget'); Object.keys(C.PRESETS).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=C.PRESETS[k].name; sel.appendChild(o); });
 var oc=document.createElement('option'); oc.value='custom'; oc.textContent='Oma taulu (syötä mitat)'; sel.appendChild(oc);
-function loadSet(){ sel.value=S.target; $('oCal').value=String(S.cal); $('oDist').value=S.dist; $('oThr').value=S.thr; $('vThr').textContent=S.thr; $('oRes').value=String(S.res); $('oInt').value=String(S.interval);
+function loadSet(){ sel.value=S.target; $('oCal').value=String(S.cal); $('oDist').value=S.dist; $('oThr').value=S.thr; $('vThr').textContent=S.thr; $('oRes').value=String(S.res); $('oInt').value=String(S.interval); $('oConf').value=String(S.confirm||2);
   $('oFlip').checked=S.flip; $('oSpeak').checked=S.speak; $('oBeep').checked=S.beep; $('oR10').value=S.custom.ring10; $('oStep').value=S.custom.step; $('oBlack').value=S.custom.black; $('oInner').value=S.custom.inner;
   $('customBox').style.display=S.target==='custom'?'grid':'none'; }
 sel.onchange=function(){ $('customBox').style.display=sel.value==='custom'?'grid':'none'; };
@@ -747,11 +828,10 @@ $('oThr').oninput=function(){ $('vThr').textContent=this.value; };
 $('bSet').onclick=function(){ loadSet(); $('dSet').showModal(); };
 $('setOk').onclick=function(){
   var oldBlack=target().black, oldRes=+S.res;
-  S.target=sel.value; S.cal=+$('oCal').value; S.dist=+$('oDist').value||0; S.thr=+$('oThr').value; S.res=+$('oRes').value; S.interval=+$('oInt').value;
+  S.target=sel.value; S.cal=+$('oCal').value; S.dist=+$('oDist').value||0; S.thr=+$('oThr').value; S.res=+$('oRes').value; S.interval=+$('oInt').value; S.confirm=+$('oConf').value;
   S.flip=$('oFlip').checked; S.speak=$('oSpeak').checked; S.beep=$('oBeep').checked;
   S.custom={ring10:+$('oR10').value||10,step:+$('oStep').value||10,black:+$('oBlack').value||100,inner:+$('oInner').value||0};
   save();
-  if(st.calib && target().black!==oldBlack){ st.calib.ppm*=oldBlack/target().black; } // sama musta pikseleinä, eri millimetrit
   if(S.res!==oldRes && st.srcW){ setupWork(st.srcW,st.srcH); fitView(); }
   if(st.live){ clearInterval(st.timer); st.timer=setInterval(tick,+S.interval); }
   recompute(); render(); $('dSet').close();
@@ -773,6 +853,44 @@ $('bHist').onclick=function(){
   $('dHist').showModal(); };
 $('histClear').onclick=function(){ if(confirm('Poistetaanko koko historia?')){ LS.set('tt_history',[]); $('bHist').onclick(); } };
 $('bHelp').onclick=function(){ $('dHelp').showModal(); };
+/* hienosäätö */
+function showTune(on){ $('tune').classList.toggle('show',!!on); updateTuneInfo(); render(); }
+function updateTuneInfo(){ if(!st.calib){$('tuneInfo').textContent='';return;} var o=Math.round((1-Math.min(st.calib.a,st.calib.b)/Math.max(st.calib.a,st.calib.b))*1000)/10;
+  $('tuneInfo').textContent=o>=0.5?'(soikeuskorjaus '+String(o).replace('.',',')+' %)':''; }
+$('calTune').onclick=function(){ $('calibPanel').classList.remove('show'); if(!st.calib){toast('Kalibroi ensin.');return;} fitView(); showTune(true); };
+Array.prototype.forEach.call(document.querySelectorAll('#tune button'),function(b){ b.onclick=function(){
+  var t=b.getAttribute('data-t'), c=st.calib; if(!c) return;
+  var step=st.tuneStep*Math.max(1,st.aw/720), k=st.tuneStep>=2?1.02:1.004;
+  if(t==='left') c.cx-=step; else if(t==='right') c.cx+=step; else if(t==='up') c.cy-=step; else if(t==='down') c.cy+=step;
+  else if(t==='bigger'){ c.a*=k; c.b*=k; } else if(t==='smaller'){ c.a/=k; c.b/=k; }
+  else if(t==='fine'){ st.tuneStep=st.tuneStep>=2?0.5:2; $('tFine').textContent='Askel: '+(st.tuneStep>=2?'iso':'pieni'); return; }
+  else if(t==='done'){ showTune(false); st.ref=null; if(!st.live&&st.source) st.ref=grab(); toast('Kalibrointi valmis.'); return; }
+  recompute(); render(); }; });
+
+/* tarkennuksen ja valotuksen lukitus */
+function updateLockBtn(){ var b=$('lockBtn'); b.classList.toggle('on',st.locked); b.textContent=st.locked?'🔒 Lukittu':'🔓 Lukitse tarkennus'; }
+async function setLock(on){
+  var tr=st.track; if(!tr||!tr.getCapabilities){ toast('Tämä selain ei salli kameran lukitsemista.'); return; }
+  var cap=tr.getCapabilities()||{}, set=tr.getSettings?tr.getSettings():{}, done=[];
+  async function tryC(c,name){ try{ await tr.applyConstraints({advanced:[c]}); done.push(name); }catch(e){} }
+  function has(k,v){ return cap[k]&&cap[k].indexOf&&cap[k].indexOf(v)>=0; }
+  if(on){
+    if(has('focusMode','manual')&&set.focusDistance!=null) await tryC({focusMode:'manual',focusDistance:set.focusDistance},'tarkennus');
+    else if(has('focusMode','single-shot')) await tryC({focusMode:'single-shot'},'tarkennus');
+    if(has('exposureMode','manual')&&set.exposureTime!=null) await tryC({exposureMode:'manual',exposureTime:set.exposureTime},'valotus');
+    if(has('whiteBalanceMode','manual')&&set.colorTemperature) await tryC({whiteBalanceMode:'manual',colorTemperature:set.colorTemperature},'valkotasapaino');
+    if(!done.length){ toast('Puhelin ei salli tarkennuksen/valotuksen lukitusta tässä selaimessa. Normalisointi tasaa silti valotusmuutokset.',5000); return; }
+    st.locked=true; toast('Lukittu: '+done.join(', ')+'.');
+  } else {
+    if(has('focusMode','continuous')) await tryC({focusMode:'continuous'},'tarkennus');
+    if(has('exposureMode','continuous')) await tryC({exposureMode:'continuous'},'valotus');
+    if(has('whiteBalanceMode','continuous')) await tryC({whiteBalanceMode:'continuous'},'valkotasapaino');
+    st.locked=false; toast('Automaattinen tarkennus ja valotus päällä.');
+  }
+  st.ref=null; st.pending=null; updateLockBtn();
+}
+$('lockBtn').onclick=function(){ setLock(!st.locked); };
+
 if(!LS.get('tt_seenHelp',false)){ LS.set('tt_seenHelp',true); setTimeout(function(){ $('dHelp').showModal(); },400); }
 updateUI();
 })();
