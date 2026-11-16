@@ -1,0 +1,6 @@
+{
+  "appId": "fi.taulututka.app",
+  "appName": "Taulututka",
+  "webDir": "www",
+  "android": { "allowMixedContent": false }
+}

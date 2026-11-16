@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f1412">
+<title>Taulututka</title>
+<style>
+:root{--bg:#0f1412;--panel:#18201d;--line:#2a3531;--txt:#e9efe9;--mut:#93a39b;--acc:#ff7a1a;--ok:#4fd18b;--ring:#38d3e0;--warn:#ffcc4d}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top))}
+.logo{width:28px;height:28px}
+h1{font-size:19px;margin:0;letter-spacing:.3px;font-weight:750}
+h1 span{color:var(--acc)}
+#status{margin-left:auto;font-size:12px;padding:4px 9px;border-radius:99px;background:var(--panel);border:1px solid var(--line);color:var(--mut);white-space:nowrap}
+#status.live{color:var(--ok);border-color:#2e6b4b}
+#status.warn{color:var(--warn);border-color:#6b5a2e}
+main{max-width:900px;margin:0 auto;padding:0 10px 30px}
+#stageWrap{position:relative;background:#000;border-radius:12px;overflow:hidden;border:1px solid var(--line);touch-action:none}
+#stage{display:block;width:100%;height:auto}
+#empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--mut);text-align:center;padding:20px;font-size:14px}
+#empty b{color:var(--txt);font-size:16px}
+#modeHint{position:absolute;left:50%;top:10px;transform:translateX(-50%);background:rgba(255,122,26,.92);color:#111;font-weight:650;padding:6px 12px;border-radius:99px;font-size:13px;display:none;white-space:nowrap}
+#zoomCtl{position:absolute;right:8px;bottom:8px;display:flex;flex-direction:column;gap:6px}
+#zoomCtl button{width:40px;height:40px;border-radius:10px;padding:0;font-size:20px;background:rgba(15,20,18,.8)}
+#camZoomWrap{position:absolute;left:10px;right:60px;bottom:12px;display:none;align-items:center;gap:8px;font-size:12px;color:var(--mut)}
+#camZoomWrap input{flex:1}
+.bar{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+button{appearance:none;border:1px solid var(--line);background:var(--panel);color:var(--txt);border-radius:11px;padding:11px 6px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;min-height:56px;justify-content:center}
+button .i{font-size:19px;line-height:1}
+button:active{transform:scale(.97)}
+button.on{border-color:var(--acc);color:var(--acc)}
+button.primary{background:var(--acc);color:#111;border-color:var(--acc)}
+button.small{min-height:auto;padding:8px 12px;flex-direction:row;display:inline-flex}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:10px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center}
+.stats div small{display:block;color:var(--mut);font-size:11.5px}
+.stats div b{font-size:22px;font-variant-numeric:tabular-nums}
+#last{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+#lastScore{font-size:40px;font-weight:800;color:var(--acc);font-variant-numeric:tabular-nums;line-height:1}
+#lastInfo{color:var(--mut);font-size:13.5px}
+#mpi{color:var(--mut);font-size:13px;margin-top:8px}
+table{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}
+td,th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--mut);font-weight:600;font-size:12px}
+td.r,th.r{text-align:right}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+dialog{background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:14px;max-width:520px;width:calc(100% - 24px);padding:16px}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+dialog h2{margin:0 0 10px;font-size:18px}
+label{display:block;margin:10px 0 4px;color:var(--mut);font-size:13px}
+select,input[type=number],input[type=text]{width:100%;background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:9px;padding:9px;font:inherit}
+input[type=range]{width:100%;accent-color:var(--acc)}
+.chk{display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--txt)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.help ol{padding-left:20px;margin:6px 0}.help li{margin:5px 0}
+.help p{color:var(--mut);margin:6px 0}
+#toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%) translateY(120px);background:#222c28;border:1px solid var(--line);padding:10px 14px;border-radius:12px;max-width:92vw;transition:transform .25s;z-index:9;font-size:14px}
+#toast.show{transform:translateX(-50%) translateY(0)}
+.muted{color:var(--mut);font-size:12.5px}
+#calibPanel{display:none;gap:8px;margin-top:8px}
+#calibPanel.show{display:flex}
+#calibPanel button{flex:1;min-height:46px}
+</style>
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Taulututka">
+</head>
+<body>
+<header>
+  <svg class="logo" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="#fff"/><circle cx="16" cy="16" r="9" fill="#111"/><circle cx="16" cy="16" r="5" fill="none" stroke="#fff" stroke-width="1"/><circle cx="21" cy="11" r="2.4" fill="#ff7a1a"/></svg>
+  <h1>Taulu<span>tutka</span></h1>
+  <div id="status">Ei kameraa</div>
+</header>
+<main>
+  <div id="stageWrap">
+    <canvas id="stage" width="720" height="540"></canvas>
+    <div id="empty"><b>Valmiina.</b>Kiinnitä puhelin kaukoputkeen ja paina <b>Kamera</b>, tai ota kuva taulusta painamalla <b>Kuva</b>.<span class="muted">Toimii tavallisilla valkomustilla tauluilla.</span></div>
+    <div id="modeHint"></div>
+    <div id="camZoomWrap">Optinen zoom <input id="camZoom" type="range"></div>
+    <div id="zoomCtl"><button id="zIn">+</button><button id="zOut">−</button><button id="zFit" title="Keskitä tauluun">⌖</button></div>
+  </div>
+
+  <div class="bar">
+    <button id="bCam"><span class="i">▶</span>Kamera</button>
+    <button id="bPhoto"><span class="i">📷</span>Kuva</button>
+    <button id="bCal"><span class="i">◎</span>Kalibroi</button>
+    <button id="bRef"><span class="i">↺</span>Nollaa</button>
+    <button id="bAdd"><span class="i">＋</span>Lisää osuma</button>
+    <button id="bDel"><span class="i">－</span>Poista osuma</button>
+    <button id="bNew"><span class="i">⇥</span>Uusi sarja</button>
+    <button id="bSet"><span class="i">⚙</span>Asetukset</button>
+  </div>
+  <div id="calibPanel">
+    <button id="calAuto" class="primary">Automaattinen</button>
+    <button id="calMan">Käsin: keskipiste + mustan reuna</button>
+  </div>
+  <input id="file" type="file" accept="image/*" capture="environment" hidden>
+
+  <div class="card">
+    <div id="last"><div id="lastScore">–</div><div id="lastInfo">Ei osumia vielä</div></div>
+    <div class="stats">
+      <div><small>Laukaukset</small><b id="sN">0</b></div>
+      <div><small>Pisteet</small><b id="sSum">0</b></div>
+      <div><small>Desimaali</small><b id="sDec">0.0</b></div>
+      <div><small>Ryhmä (ES)</small><b id="sES">–</b></div>
+    </div>
+    <div id="mpi"></div>
+  </div>
+
+  <div class="card">
+    <table><thead><tr><th>#</th><th class="r">Pist.</th><th class="r">Des.</th><th>Suunta</th><th class="r">x / y mm</th></tr></thead><tbody id="list"></tbody></table>
+    <div class="row" style="margin-top:10px">
+      <button class="small" id="bPng">Tallenna kuva</button>
+      <button class="small" id="bCsv">CSV</button>
+      <button class="small" id="bHist">Historia</button>
+      <button class="small" id="bHelp">Ohje</button>
+    </div>
+  </div>
+</main>
+
+<dialog id="dSet">
+  <h2>Asetukset</h2>
+  <label>Taulu</label>
+  <select id="oTarget"></select>
+  <div id="customBox" class="grid2" style="display:none">
+    <div><label>10:n halkaisija (mm)</label><input id="oR10" type="number" step="0.1"></div>
+    <div><label>Renkaan väli halk. (mm)</label><input id="oStep" type="number" step="0.1"></div>
+    <div><label>Mustan halkaisija (mm)</label><input id="oBlack" type="number" step="0.1"></div>
+    <div><label>Sisäkympin halk. (mm)</label><input id="oInner" type="number" step="0.1"></div>
+  </div>
+  <div class="grid2">
+    <div><label>Kaliiperi (mm)</label>
+      <select id="oCal"><option value="4.5">4,5 mm (ilma-ase)</option><option value="5.6">5,6 mm (.22 LR)</option><option value="6.5">6,5 mm</option><option value="7.62">7,62 mm (.308)</option><option value="9">9 mm</option><option value="11.43">11,43 mm (.45)</option></select></div>
+    <div><label>Ampumaetäisyys (m)</label><input id="oDist" type="number" step="1" min="1"></div>
+  </div>
+  <label>Herkkyys: <span id="vThr"></span> <span class="muted">(pienempi = herkempi)</span></label>
+  <input id="oThr" type="range" min="20" max="90" step="1">
+  <div class="grid2">
+    <div><label>Analyysitarkkuus</label><select id="oRes"><option value="480">480 px (nopea)</option><option value="720">720 px</option><option value="960">960 px (tarkka)</option></select></div>
+    <div><label>Tarkistusväli</label><select id="oInt"><option value="400">0,4 s</option><option value="700">0,7 s</option><option value="1200">1,2 s</option></select></div>
+  </div>
+  <label class="chk"><input type="checkbox" id="oFlip"> Kuva on ylösalaisin (käännä suunnat 180°)</label>
+  <label class="chk"><input type="checkbox" id="oSpeak"> Lue tulos ääneen</label>
+  <label class="chk"><input type="checkbox" id="oBeep"> Äänimerkki ja värinä osumasta</label>
+  <div class="row" style="margin-top:14px;justify-content:flex-end"><button class="small primary" id="setOk">Valmis</button></div>
+</dialog>
+
+<dialog id="dHist"><h2>Historia</h2><div id="histBody"></div>
+  <div class="row" style="margin-top:12px;justify-content:space-between"><button class="small" id="histClear">Tyhjennä</button><button class="small primary" onclick="this.closest('dialog').close()">Sulje</button></div></dialog>
+
+<dialog id="dHelp" class="help"><h2>Näin Taulututka toimii</h2>
+<ol>
+<li><b>Kiinnitä puhelin kaukoputkeen</b> adapterilla ja keskitä taulu kuvaan. Zoomaa niin, että koko taulu mahtuu ruutuun ja täyttää sen mahdollisimman hyvin.</li>
+<li>Paina <b>Kamera</b> (live-seuranta) tai <b>Kuva</b> (otat kuvan jokaisen laukauksen tai sarjan jälkeen).</li>
+<li>Paina <b>Kalibroi → Automaattinen</b>. Sovellus etsii taulun mustan alueen ja piirtää renkaat. Jos ne eivät osu, valitse <b>Käsin</b> ja napauta ensin keskipistettä, sitten mustan alueen reunaa.</li>
+<li>Ammu. Uusi reikä tunnistetaan vertaamalla kuvaa edelliseen: valkoisella alueella reikä tummuu ja mustalla vaalenee, joten kumpikin löytyy.</li>
+<li>Väärän tunnistuksen voi poistaa (<b>Poista osuma</b>) ja puuttuvan voi lisätä napauttamalla (<b>Lisää osuma</b>).</li>
+</ol>
+<p><b>Vinkit:</b> Laita taulun taakse vaalea pahvi, jolloin mustalle osuneet reiät näkyvät kirkkaina. Vältä tuulessa heiluvaa taulua ja kaukoputken koskemista seurannan aikana. Jos kamera liikahtaa, paina <b>Nollaa</b>.</p>
+<p>Live-kamera ja tiedostolataukset vaativat, että sovellus avataan omasta https-osoitteesta (esim. GitHub Pages). Claude-näkymässä toimii <b>Kuva</b>-tila: puhelin avaa kameran, otat kuvan ja sovellus vertaa sitä edelliseen.</p>
+<div class="row" style="justify-content:flex-end"><button class="small primary" onclick="this.closest('dialog').close()">Selvä</button></div></dialog>
+
+<div id="toast"></div>
+<video id="video" playsinline muted autoplay style="display:none"></video>
+
+<script>
+// Taulututka – kuvankäsittelyn ydin (puhtaita funktioita, ei DOM-riippuvuuksia)
+var TTCore = (function () {
+  'use strict';
+  function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+
+  function toGray(data, w, h) {
+    var n = w * h, g = new Float32Array(n);
+    for (var i = 0, j = 0; i < n; i++, j += 4) g[i] = 0.299 * data[j] + 0.587 * data[j + 1] + 0.114 * data[j + 2];
+    return g;
+  }
+
+  function blur(src, w, h, r) {
+    if (!r || r < 1) return src;
+    var d = 2 * r + 1, tmp = new Float32Array(w * h), out = new Float32Array(w * h), x, y, k, s, o;
+    for (y = 0; y < h; y++) {
+      o = y * w; s = 0;
+      for (k = -r; k <= r; k++) s += src[o + clamp(k, 0, w - 1)];
+      for (x = 0; x < w; x++) {
+        tmp[o + x] = s / d;
+        s += src[o + clamp(x + r + 1, 0, w - 1)] - src[o + clamp(x - r, 0, w - 1)];
+      }
+    }
+    for (x = 0; x < w; x++) {
+      s = 0;
+      for (k = -r; k <= r; k++) s += tmp[clamp(k, 0, h - 1) * w + x];
+      for (y = 0; y < h; y++) {
+        out[y * w + x] = s / d;
+        s += tmp[clamp(y + r + 1, 0, h - 1) * w + x] - tmp[clamp(y - r, 0, h - 1) * w + x];
+      }
+    }
+    return out;
+  }
+
+  // roi = {cx, cy, r} analyysikoordinaateissa tai null = koko kuva
+  function roiMask(w, h, roi, margin) {
+    var m = new Uint8Array(w * h), x, y;
+    margin = margin || 0;
+    if (!roi) {
+      for (y = margin; y < h - margin; y++) for (x = margin; x < w - margin; x++) m[y * w + x] = 1;
+      return m;
+    }
+    var r2 = roi.r * roi.r;
+    var y0 = Math.max(margin, Math.floor(roi.cy - roi.r)), y1 = Math.min(h - margin - 1, Math.ceil(roi.cy + roi.r));
+    var x0 = Math.max(margin, Math.floor(roi.cx - roi.r)), x1 = Math.min(w - margin - 1, Math.ceil(roi.cx + roi.r));
+    for (y = y0; y <= y1; y++) for (x = x0; x <= x1; x++) {
+      var dx = x - roi.cx, dy = y - roi.cy;
+      if (dx * dx + dy * dy <= r2) m[y * w + x] = 1;
+    }
+    return m;
+  }
+
+  function normalize(g, w, h, mask) {
+    var n = w * h, s = 0, s2 = 0, c = 0, i;
+    for (i = 0; i < n; i++) if (mask[i]) { s += g[i]; s2 += g[i] * g[i]; c++; }
+    if (!c) return g;
+    var mean = s / c, sd = Math.sqrt(Math.max(1, s2 / c - mean * mean));
+    var out = new Float32Array(n), k = 40 / sd;
+    for (i = 0; i < n; i++) out[i] = (g[i] - mean) * k + 128;
+    return out;
+  }
+
+  function downsample(g, w, h, f) {
+    var dw = Math.floor(w / f), dh = Math.floor(h / f), out = new Float32Array(dw * dh), inv = 1 / (f * f);
+    for (var y = 0; y < dh; y++) for (var x = 0; x < dw; x++) {
+      var s = 0;
+      for (var j = 0; j < f; j++) { var o = (y * f + j) * w + x * f; for (var i = 0; i < f; i++) s += g[o + i]; }
+      out[y * dw + x] = s * inv;
+    }
+    return { g: out, w: dw, h: dh };
+  }
+
+  function sad(ref, cur, w, h, mask, dx, dy, step, x0, x1, y0, y1) {
+    var s = 0, c = 0;
+    for (var y = y0; y < y1; y += step) {
+      var ys = y + dy; if (ys < 0 || ys >= h) continue;
+      for (var x = x0; x < x1; x += step) {
+        if (mask && !mask[y * w + x]) continue;
+        var xs = x + dx; if (xs < 0 || xs >= w) continue;
+        var d = cur[ys * w + xs] - ref[y * w + x];
+        s += d < 0 ? -d : d; c++;
+      }
+    }
+    return c ? s / c : 1e9;
+  }
+
+  // Etsii siirron (dx,dy): cur(x+dx, y+dy) ≈ ref(x, y)
+  function estimateShift(ref, cur, w, h, mask, maxShift) {
+    var f = 4, R = Math.ceil(maxShift / f);
+    var a = downsample(ref, w, h, f), b = downsample(cur, w, h, f);
+    var dm = null;
+    if (mask) {
+      dm = new Uint8Array(a.w * a.h);
+      for (var y = 0; y < a.h; y++) for (var x = 0; x < a.w; x++) dm[y * a.w + x] = mask[(y * f + (f >> 1)) * w + x * f + (f >> 1)];
+    }
+    var best = 1e18, bx = 0, by = 0, dx, dy, v;
+    for (dy = -R; dy <= R; dy++) for (dx = -R; dx <= R; dx++) {
+      v = sad(a.g, b.g, a.w, a.h, dm, dx, dy, 1, R, a.w - R, R, a.h - R);
+      if (v < best) { best = v; bx = dx; by = dy; }
+    }
+    var cx = bx * f, cy = by * f, m = maxShift; best = 1e18;
+    var rx = cx, ry = cy;
+    for (dy = cy - f; dy <= cy + f; dy++) for (dx = cx - f; dx <= cx + f; dx++) {
+      if (Math.abs(dx) > m + f || Math.abs(dy) > m + f) continue;
+      v = sad(ref, cur, w, h, mask, dx, dy, 2, m + f, w - m - f, m + f, h - m - f);
+      if (v < best) { best = v; rx = dx; ry = dy; }
+    }
+    return { dx: rx, dy: ry, err: best };
+  }
+
+  function erode(m, w, h) {
+    var o = new Uint8Array(w * h);
+    for (var y = 1; y < h - 1; y++) for (var x = 1; x < w - 1; x++) {
+      var i = y * w + x;
+      if (m[i] && m[i - 1] && m[i + 1] && m[i - w] && m[i + w] && m[i - w - 1] && m[i - w + 1] && m[i + w - 1] && m[i + w + 1]) o[i] = 1;
+    }
+    return o;
+  }
+  function dilate(m, w, h) {
+    var o = new Uint8Array(w * h);
+    for (var y = 1; y < h - 1; y++) for (var x = 1; x < w - 1; x++) {
+      var i = y * w + x;
+      if (m[i] || m[i - 1] || m[i + 1] || m[i - w] || m[i + w] || m[i - w - 1] || m[i - w + 1] || m[i + w - 1] || m[i + w + 1]) o[i] = 1;
+    }
+    return o;
+  }
+
+  function components(m, w, h, minArea) {
+    var lab = new Int32Array(w * h), out = [], stack = [], id = 0;
+    for (var i = 0; i < w * h; i++) {
+      if (!m[i] || lab[i]) continue;
+      id++; stack.push(i); lab[i] = id;
+      var area = 0, sx = 0, sy = 0, x0 = w, x1 = 0, y0 = h, y1 = 0;
+      while (stack.length) {
+        var p = stack.pop(), x = p % w, y = (p - x) / w;
+        area++; sx += x; sy += y;
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+        if (x > 0 && m[p - 1] && !lab[p - 1]) { lab[p - 1] = id; stack.push(p - 1); }
+        if (x < w - 1 && m[p + 1] && !lab[p + 1]) { lab[p + 1] = id; stack.push(p + 1); }
+        if (y > 0 && m[p - w] && !lab[p - w]) { lab[p - w] = id; stack.push(p - w); }
+        if (y < h - 1 && m[p + w] && !lab[p + w]) { lab[p + w] = id; stack.push(p + w); }
+      }
+      if (area >= (minArea || 1)) out.push({ area: area, cx: sx / area, cy: sy / area, x0: x0, x1: x1, y0: y0, y1: y1, bw: x1 - x0 + 1, bh: y1 - y0 + 1 });
+    }
+    return out;
+  }
+
+  function mergeBlobs(blobs, dist) {
+    var d2 = dist * dist, merged = true;
+    blobs = blobs.slice();
+    while (merged) {
+      merged = false;
+      outer: for (var i = 0; i < blobs.length; i++) for (var j = i + 1; j < blobs.length; j++) {
+        var a = blobs[i], b = blobs[j], dx = a.cx - b.cx, dy = a.cy - b.cy;
+        if (dx * dx + dy * dy <= d2) {
+          var A = a.area + b.area;
+          blobs[i] = { area: A, cx: (a.cx * a.area + b.cx * b.area) / A, cy: (a.cy * a.area + b.cy * b.area) / A,
+            x0: Math.min(a.x0, b.x0), x1: Math.max(a.x1, b.x1), y0: Math.min(a.y0, b.y0), y1: Math.max(a.y1, b.y1) };
+          blobs[i].bw = blobs[i].x1 - blobs[i].x0 + 1; blobs[i].bh = blobs[i].y1 - blobs[i].y0 + 1;
+          blobs.splice(j, 1); merged = true; break outer;
+        }
+      }
+    }
+    return blobs;
+  }
+
+  /* Vertaa referenssiä ja nykyistä kuvaa. Toimii sekä valkoisella (reikä tummuu)
+     että mustalla alueella (reikä vaalenee), koska käytetään itseisarvoerotusta.
+     opts: { roi, thr, maxShift, holePx (odotettu reiän halkaisija px), minArea, maxArea } */
+  function detect(ref, cur, w, h, opts) {
+    var mask = roiMask(w, h, opts.roi, (opts.maxShift || 12) + 2);
+    var rN = normalize(ref, w, h, mask), cN = normalize(cur, w, h, mask);
+    var sh = estimateShift(rN, cN, w, h, mask, opts.maxShift || 12);
+    var thr = opts.thr || 45, dm = new Uint8Array(w * h), changed = 0, total = 0;
+    for (var y = 0; y < h; y++) {
+      var ys = y + sh.dy; if (ys < 0 || ys >= h) continue;
+      for (var x = 0; x < w; x++) {
+        var i = y * w + x; if (!mask[i]) continue;
+        var xs = x + sh.dx; if (xs < 0 || xs >= w) continue;
+        total++;
+        var d = cN[ys * w + xs] - rN[i];
+        if (d > thr || d < -thr) { dm[i] = 1; changed++; }
+      }
+    }
+    var opened = dilate(erode(dm, w, h), w, h);
+    var hp = opts.holePx || 0;
+    var expA = hp ? Math.PI * hp * hp / 4 : 0;
+    var minA = opts.minArea || (hp ? Math.max(4, expA * 0.12) : 6);
+    var maxA = opts.maxArea || (hp ? expA * 4 : w * h * 0.01);
+    var comps = components(opened, w, h, 2);
+    comps = mergeBlobs(comps, hp ? hp * 0.9 : 6);
+    var blobs = [];
+    for (var k = 0; k < comps.length; k++) {
+      var c = comps[k];
+      if (c.area < minA || c.area > maxA) continue;
+      var asp = Math.min(c.bw, c.bh) / Math.max(c.bw, c.bh);
+      if (asp < 0.3) continue; // pitkät viivat (esim. varjot, reunat) pois
+      blobs.push({ x: c.cx + sh.dx, y: c.cy + sh.dy, area: c.area }); // nykyisen kuvan koordinaateissa
+    }
+    return { shift: sh, changedFrac: total ? changed / total : 0, blobs: blobs };
+  }
+
+  function otsu(g, n) {
+    var hist = new Float64Array(256), i;
+    for (i = 0; i < n; i++) hist[clamp(g[i] | 0, 0, 255)]++;
+    var sum = 0; for (i = 0; i < 256; i++) sum += i * hist[i];
+    var sB = 0, wB = 0, best = 0, t = 128;
+    for (i = 0; i < 256; i++) {
+      wB += hist[i]; if (!wB) continue;
+      var wF = n - wB; if (!wF) break;
+      sB += i * hist[i];
+      var mB = sB / wB, mF = (sum - sB) / wF, v = wB * wF * (mB - mF) * (mB - mF);
+      if (v > best) { best = v; t = i; }
+    }
+    return t;
+  }
+
+  // Etsii taulun mustan tähtäinalueen: palauttaa {cx, cy, r} tai null
+  function findBullseye(g, w, h) {
+    var n = w * h, t = otsu(g, n), m = new Uint8Array(n), i;
+    for (i = 0; i < n; i++) m[i] = g[i] < t ? 1 : 0;
+    // sulje mustan sisällä olevat valkoiset rengasviivat
+    m = dilate(dilate(m, w, h), w, h); m = erode(erode(m, w, h), w, h);
+    var comps = components(m, w, h, Math.max(50, n * 0.002)), best = null, bs = 0;
+    var diag = Math.sqrt(w * w + h * h);
+    for (var k = 0; k < comps.length; k++) {
+      var c = comps[k];
+      if (c.x0 <= 1 || c.y0 <= 1 || c.x1 >= w - 2 || c.y1 >= h - 2) continue;
+      var fill = c.area / (c.bw * c.bh), asp = Math.min(c.bw, c.bh) / Math.max(c.bw, c.bh);
+      if (asp < 0.7 || fill < 0.5 || fill > 0.95) continue;
+      var mx = (c.x0 + c.x1) / 2, my = (c.y0 + c.y1) / 2;
+      var dc = Math.sqrt((mx - w / 2) * (mx - w / 2) + (my - h / 2) * (my - h / 2)) / diag;
+      var s = c.area * (1 - Math.abs(fill - 0.785)) * asp * (1 - dc);
+      if (s > bs) { bs = s; best = { cx: mx, cy: my, r: (c.bw + c.bh) / 4 }; }
+    }
+    return best;
+  }
+
+  // Taulut: halkaisijat millimetreinä (ISSF-mitat)
+  var PRESETS = {
+    issf50: { name: '50 m pienoiskivääri (ISSF)', ring10: 10.4, step: 16, black: 112.4, inner: 5, minRing: 1 },
+    pist: { name: '25/50 m pistooli, tarkkuus (ISSF)', ring10: 50, step: 50, black: 200, inner: 25, minRing: 1 },
+    ilmakiv: { name: '10 m ilmakivääri (ISSF)', ring10: 0.5, step: 5, black: 30.5, inner: 0, minRing: 1 },
+    ilmapist: { name: '10 m ilmapistooli (ISSF)', ring10: 11.5, step: 16, black: 59.5, inner: 5, minRing: 1 }
+  };
+
+  function ringRadius(t, k) { return (t.ring10 + (10 - k) * t.step) / 2; }
+
+  // d = etäisyys keskipisteestä (mm), cal = kaliiperi (mm). Rengas lasketaan ISSF:n kosketussäännöllä.
+  function score(d, t, cal) {
+    var hr = cal / 2, ring = 0, k;
+    for (k = 10; k >= (t.minRing || 1); k--) if (d - hr <= ringRadius(t, k)) { ring = k; break; }
+    if (!ring) return { ring: 0, dec: 0, x: false };
+    var Bk = ringRadius(t, ring) + hr, frac;
+    if (ring === 10) frac = 1 - d / Bk;
+    else { var Bn = ringRadius(t, ring + 1) + hr; frac = (Bk - d) / (Bk - Bn); }
+    var dec = ring + Math.min(0.9, Math.max(0, Math.floor(frac * 10 + 1e-9) / 10));
+    return { ring: ring, dec: Math.round(dec * 10) / 10, x: t.inner ? d <= t.inner / 2 + hr : false };
+  }
+
+  function clockOf(x, y) {
+    var th = Math.atan2(x, y) * 180 / Math.PI; th = (th + 360) % 360;
+    var hh = Math.round(th / 30) % 12; return hh === 0 ? 12 : hh;
+  }
+
+  function groupStats(pts) {
+    if (!pts.length) return null;
+    var mx = 0, my = 0, es = 0, i, j;
+    for (i = 0; i < pts.length; i++) { mx += pts[i].x; my += pts[i].y; }
+    mx /= pts.length; my /= pts.length;
+    for (i = 0; i < pts.length; i++) for (j = i + 1; j < pts.length; j++) {
+      var dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y, d = Math.sqrt(dx * dx + dy * dy); if (d > es) es = d;
+    }
+    var mr = 0; for (i = 0; i < pts.length; i++) mr += Math.sqrt((pts[i].x - mx) * (pts[i].x - mx) + (pts[i].y - my) * (pts[i].y - my));
+    return { mx: mx, my: my, es: es, mr: mr / pts.length };
+  }
+
+  return { toGray: toGray, blur: blur, roiMask: roiMask, normalize: normalize, estimateShift: estimateShift,
+    detect: detect, findBullseye: findBullseye, PRESETS: PRESETS, ringRadius: ringRadius, score: score,
+    clockOf: clockOf, groupStats: groupStats, otsu: otsu };
+})();
+if (typeof module !== 'undefined') module.exports = TTCore;
+
+</script>
+<script>
+(function(){
+'use strict';
+var C = TTCore, $ = function(id){return document.getElementById(id);};
+var LS = { get:function(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},
+           set:function(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}} };
+
+var S = Object.assign({ target:'issf50', cal:5.6, dist:50, thr:45, res:720, interval:700, flip:false, speak:true, beep:true,
+  custom:{ring10:10.4,step:16,black:112.4,inner:5} }, LS.get('tt_settings',{}));
+
+var st = {
+  source:null, srcW:0, srcH:0, live:false, stream:null, track:null,
+  aw:0, ah:0, ref:null, prev:null, pending:null, quiet:0, bigCount:0, busy:false,
+  calib:null,           // {cx, cy, ppm} analyysikoordinaateissa
+  shots:[], mode:'none', calTmp:null,
+  view:{z:1,cx:0,cy:0}, timer:null, wake:null
+};
+var work = document.createElement('canvas'), wctx = work.getContext('2d',{willReadFrequently:true});
+var cv = $('stage'), ctx = cv.getContext('2d');
+
+function target(){ if(S.target==='custom'){var c=S.custom;return {name:'Oma taulu',ring10:+c.ring10,step:+c.step,black:+c.black,inner:+c.inner,minRing:1};} return C.PRESETS[S.target]; }
+function save(){ LS.set('tt_settings',S); }
+
+var toastT;
+function toast(m,ms){ var t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(function(){t.classList.remove('show');},ms||2800); }
+function status(m,cls){ var s=$('status'); s.textContent=m; s.className=cls||''; }
+function hint(m){ var h=$('modeHint'); h.textContent=m||''; h.style.display=m?'block':'none'; }
+
+/* ---------- kuvan nouto ---------- */
+function setupWork(w,h){
+  var aw=+S.res, ah=Math.round(aw*h/w);
+  if(st.aw && (st.aw!==aw || st.ah!==ah) && st.calib){ var k=aw/st.aw; st.calib={cx:st.calib.cx*k,cy:st.calib.cy*k,ppm:st.calib.ppm*k}; }
+  if(st.aw!==aw||st.ah!==ah){ st.ref=null; st.prev=null; st.view={z:1,cx:aw/2,cy:ah/2}; }
+  st.aw=aw; st.ah=ah; work.width=aw; work.height=ah;
+  cv.width=aw; cv.height=ah;
+}
+function grab(){
+  if(!st.source) return null;
+  wctx.drawImage(st.source,0,0,st.aw,st.ah);
+  var d=wctx.getImageData(0,0,st.aw,st.ah).data;
+  return C.blur(C.toGray(d,st.aw,st.ah),st.aw,st.ah,1);
+}
+
+async function startCamera(){
+  if(st.live){ stopCamera(); return; }
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ toast('Selain ei salli live-kameraa tässä näkymässä. Käytä Kuva-tilaa.',5000); return; }
+  try{
+    var stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});
+    var v=$('video'); v.srcObject=stream; await v.play();
+    st.stream=stream; st.track=stream.getVideoTracks()[0]; st.source=v; st.live=true;
+    await new Promise(function(r){ if(v.videoWidth) r(); else v.onloadedmetadata=r; });
+    st.srcW=v.videoWidth; st.srcH=v.videoHeight; setupWork(st.srcW,st.srcH);
+    st.ref=null; st.pending=null;
+    $('empty').style.display='none'; $('bCam').classList.add('on'); $('bCam').lastChild.textContent='Pysäytä';
+    status('Live','live'); setupCamZoom(); keepAwake();
+    st.timer=setInterval(tick,+S.interval);
+    if(!st.calib) setTimeout(function(){ autoCalib(true); },900);
+  }catch(e){ toast('Kameraa ei saatu auki ('+(e.name||e)+'). Käytä Kuva-tilaa tai avaa sovellus https-osoitteesta.',6000); }
+}
+function stopCamera(){
+  clearInterval(st.timer); st.timer=null;
+  if(st.stream) st.stream.getTracks().forEach(function(t){t.stop();});
+  // pidä viimeinen ruutu näkyvissä
+  var snap=document.createElement('canvas'); snap.width=st.aw; snap.height=st.ah; snap.getContext('2d').drawImage(work,0,0);
+  st.source=snap; st.live=false; st.stream=null; st.track=null;
+  $('bCam').classList.remove('on'); $('bCam').lastChild.textContent='Kamera'; $('camZoomWrap').style.display='none';
+  status('Pysäytetty'); if(st.wake){try{st.wake.release();}catch(e){} st.wake=null;}
+}
+function setupCamZoom(){
+  try{
+    var cap=st.track.getCapabilities&&st.track.getCapabilities();
+    if(cap&&cap.zoom){ var z=$('camZoom'); z.min=cap.zoom.min; z.max=cap.zoom.max; z.step=cap.zoom.step||0.1; z.value=(st.track.getSettings().zoom||cap.zoom.min);
+      $('camZoomWrap').style.display='flex';
+      z.oninput=function(){ st.track.applyConstraints({advanced:[{zoom:+z.value}]}).catch(function(){}); st.ref=null; }; }
+  }catch(e){}
+}
+async function keepAwake(){ try{ if(navigator.wakeLock) st.wake=await navigator.wakeLock.request('screen'); }catch(e){} }
+
+/* ---------- kalibrointi ---------- */
+function roi(){ if(!st.calib) return null; var t=target(); return {cx:st.calib.cx,cy:st.calib.cy,r:Math.min(Math.max(st.aw,st.ah), C.ringRadius(t,1)*st.calib.ppm*1.06+6)}; }
+function autoCalib(silentFail){
+  var g=grab(); if(!g){ toast('Avaa ensin kamera tai ota kuva.'); return; }
+  var be=C.findBullseye(g,st.aw,st.ah);
+  if(!be){ if(!silentFail) toast('Mustaa aluetta ei löytynyt. Kalibroi käsin.',4000); else toast('Kalibroi taulu: Kalibroi → Automaattinen tai Käsin.',4000); return false; }
+  st.calib={cx:be.cx,cy:be.cy,ppm:2*be.r/target().black};
+  st.ref=null; fitView(); toast('Kalibroitu ✓  Tarkista, että renkaat osuvat tauluun.');
+  recompute(); return true;
+}
+function setMode(m){
+  st.mode=m; ['bAdd','bDel'].forEach(function(id){$(id).classList.remove('on');});
+  if(m==='add'){ $('bAdd').classList.add('on'); hint('Napauta osuman kohtaa'); }
+  else if(m==='del'){ $('bDel').classList.add('on'); hint('Napauta poistettavaa osumaa'); }
+  else if(m==='calC'){ hint('1/2 Napauta taulun keskipistettä'); }
+  else if(m==='calE'){ hint('2/2 Napauta mustan alueen reunaa'); }
+  else hint('');
+}
+
+/* ---------- tunnistus ---------- */
+function holePx(){ return st.calib ? S.cal*st.calib.ppm : 0; }
+function detectOpts(){ return { roi:roi(), thr:+S.thr, maxShift:Math.round(st.aw/40)+4, holePx:holePx() }; }
+
+function tick(){
+  if(!st.live||st.busy||!st.calib) return;
+  st.busy=true;
+  try{
+    var cur=grab(); if(!cur) return;
+    if(!st.ref){ st.ref=cur; st.prev=cur; st.pending=null; status('Live – valmis','live'); return; }
+    var r=C.detect(st.ref,cur,st.aw,st.ah,detectOpts());
+    if(r.changedFrac>0.03){
+      st.pending=null; st.bigCount++;
+      var r2=C.detect(st.prev,cur,st.aw,st.ah,detectOpts());
+      if(r2.changedFrac<0.004 && st.bigCount>=2){ shiftCalib(r.shift); st.ref=cur; st.bigCount=0; toast('Kuva muuttui (valo/liike) – referenssi päivitetty.'); }
+      else status('Kuva liikkuu…','warn');
+    } else if(r.blobs.length){
+      st.bigCount=0;
+      if(st.pending && sameBlobs(st.pending,r.blobs)){ shiftCalib(r.shift); addDetected(r.blobs); st.ref=cur; st.pending=null; st.quiet=0; }
+      else st.pending=r.blobs;
+      status('Live','live');
+    } else {
+      st.pending=null; st.bigCount=0; st.quiet++;
+      if(st.quiet>=6 || r.shift.dx || r.shift.dy){ shiftCalib(r.shift); st.ref=cur; st.quiet=0; }
+      status('Live','live');
+    }
+    st.prev=cur;
+  } finally { st.busy=false; }
+}
+function shiftCalib(sh){ if(st.calib&&(sh.dx||sh.dy)){ st.calib.cx+=sh.dx; st.calib.cy+=sh.dy; } }
+function sameBlobs(a,b){
+  var tol=Math.max(4,holePx()*0.6);
+  return b.every(function(q){ return a.some(function(p){ return Math.hypot(p.x-q.x,p.y-q.y)<=tol; }); });
+}
+function addDetected(blobs){
+  // järjestä ylhäältä alas jotta numerointi on vakaa
+  blobs.sort(function(a,b){return a.y-b.y;});
+  var minSep = holePx()*0.35;
+  blobs.forEach(function(b){
+    var p=pxToMm(b.x,b.y);
+    // ei tuplia samaan kohtaan
+    if(st.shots.some(function(s){return Math.hypot(s.x-p.x,s.y-p.y)*st.calib.ppm<minSep;})) return;
+    pushShot(p.x,p.y,false);
+  });
+}
+function pxToMm(x,y){ return { x:(x-st.calib.cx)/st.calib.ppm, y:-(y-st.calib.cy)/st.calib.ppm }; }
+function mmToPx(x,y){ return { x:st.calib.cx+x*st.calib.ppm, y:st.calib.cy-y*st.calib.ppm }; }
+function oriented(s){ return S.flip?{x:-s.x,y:-s.y}:{x:s.x,y:s.y}; }
+
+function pushShot(x,y,manual){
+  var s={x:x,y:y,manual:manual,t:Date.now()}; scoreShot(s); st.shots.push(s);
+  render(); updateUI(); announce(s);
+}
+function scoreShot(s){ var r=C.score(Math.hypot(s.x,s.y),target(),+S.cal); s.ring=r.ring; s.dec=r.dec; s.X=r.x; }
+function recompute(){ st.shots.forEach(scoreShot); updateUI(); }
+
+var actx;
+function announce(s){
+  if(S.beep){ try{ navigator.vibrate&&navigator.vibrate(60); actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    var o=actx.createOscillator(),g=actx.createGain(); o.frequency.value=s.ring>=9?1320:880; g.gain.value=0.08; o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime+0.12);}catch(e){} }
+  if(S.speak && window.speechSynthesis){ try{
+    var o2=oriented(s), txt = s.ring? (String(s.dec).replace('.',',') + (s.ring<10?', kello '+C.clockOf(o2.x,o2.y):'')) : 'ohi';
+    var u=new SpeechSynthesisUtterance(txt); u.lang='fi-FI'; u.rate=1.05; speechSynthesis.cancel(); speechSynthesis.speak(u);}catch(e){} }
+}
+
+/* ---------- kuvatila ---------- */
+$('bPhoto').onclick=function(){ if(st.live) stopCamera(); $('file').click(); };
+$('file').onchange=function(e){
+  var f=e.target.files[0]; if(!f) return; e.target.value='';
+  var img=new Image(); img.onload=function(){
+    var first=!st.source || st.srcW!==img.naturalWidth || st.srcH!==img.naturalHeight;
+    st.srcW=img.naturalWidth; st.srcH=img.naturalHeight; setupWork(st.srcW,st.srcH);
+    var oldRef = first? null : st.ref;
+    st.source=img; $('empty').style.display='none';
+    var cur=grab();
+    if(!st.calib){ if(!autoCalib(true)){ st.ref=cur; render(); return; } }
+    if(!oldRef){ st.ref=cur; status('Referenssikuva'); toast('Referenssi asetettu. Ammu ja ota uusi kuva samasta kohdasta.',4000); render(); return; }
+    var r=C.detect(oldRef,cur,st.aw,st.ah,detectOpts());
+    shiftCalib(r.shift);
+    if(r.changedFrac>0.08){ toast('Kuvat eroavat liikaa (kamera liikkui?). Uusi kuva asetettiin referenssiksi.',4500); }
+    else { var n0=st.shots.length; addDetected(r.blobs); var n=st.shots.length-n0;
+      toast(n? n+' uutta osumaa' : 'Ei uusia osumia. Lisää tarvittaessa käsin tai säädä herkkyyttä.'); }
+    st.ref=cur; status('Kuvatila'); render();
+  }; img.src=URL.createObjectURL(f);
+};
+
+/* ---------- piirto ---------- */
+function fitView(){
+  if(st.calib){ var r=C.ringRadius(target(),1)*st.calib.ppm*1.1; st.view={cx:st.calib.cx,cy:st.calib.cy,z:Math.max(1,Math.min(st.aw,st.ah)/(2*r))}; }
+  else st.view={z:1,cx:st.aw/2,cy:st.ah/2};
+}
+function viewT(){ var z=st.view.z; return {a:z,e:st.aw/2-st.view.cx*z,f:st.ah/2-st.view.cy*z}; }
+function render(){
+  if(!st.aw) return;
+  var T=viewT(); ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle='#000'; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.setTransform(T.a,0,0,T.a,T.e,T.f);
+  if(st.source) ctx.drawImage(st.source,0,0,st.aw,st.ah);
+  var lw=1/T.a;
+  if(st.calib){
+    var t=target(), p=st.calib.ppm;
+    ctx.strokeStyle='rgba(56,211,224,.55)'; ctx.lineWidth=lw;
+    for(var k=1;k<=10;k++){ ctx.beginPath(); ctx.arc(st.calib.cx,st.calib.cy,C.ringRadius(t,k)*p,0,7); ctx.stroke(); }
+    ctx.strokeStyle='rgba(56,211,224,.9)'; ctx.beginPath(); ctx.moveTo(st.calib.cx-6*lw,st.calib.cy); ctx.lineTo(st.calib.cx+6*lw,st.calib.cy); ctx.moveTo(st.calib.cx,st.calib.cy-6*lw); ctx.lineTo(st.calib.cx,st.calib.cy+6*lw); ctx.stroke();
+    var hr=Math.max(2*lw,S.cal*p/2);
+    st.shots.forEach(function(s,i){
+      var q=mmToPx(s.x,s.y), last=i===st.shots.length-1;
+      ctx.beginPath(); ctx.arc(q.x,q.y,hr,0,7); ctx.fillStyle=last?'rgba(255,122,26,.55)':'rgba(255,204,77,.35)'; ctx.fill();
+      ctx.lineWidth=2*lw; ctx.strokeStyle=last?'#ff7a1a':'#ffcc4d'; ctx.stroke();
+      ctx.font=(13*lw)+'px system-ui'; ctx.fillStyle='#fff'; ctx.strokeStyle='#000'; ctx.lineWidth=3*lw;
+      ctx.strokeText(String(i+1),q.x+hr+2*lw,q.y-hr); ctx.fillText(String(i+1),q.x+hr+2*lw,q.y-hr);
+    });
+    if(st.shots.length>1){ var g=C.groupStats(st.shots), m=mmToPx(g.mx,g.my);
+      ctx.strokeStyle='#4fd18b'; ctx.lineWidth=2*lw; ctx.beginPath(); ctx.moveTo(m.x-8*lw,m.y-8*lw); ctx.lineTo(m.x+8*lw,m.y+8*lw); ctx.moveTo(m.x+8*lw,m.y-8*lw); ctx.lineTo(m.x-8*lw,m.y+8*lw); ctx.stroke(); }
+  }
+  if(st.mode==='calE'&&st.calTmp){ ctx.fillStyle='#ff7a1a'; ctx.beginPath(); ctx.arc(st.calTmp.x,st.calTmp.y,4*lw,0,7); ctx.fill(); }
+}
+function loop(){ if(st.live) render(); requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+
+/* ---------- käyttöliittymä ---------- */
+function fmt(v,d){ return (Math.round(v*Math.pow(10,d))/Math.pow(10,d)).toFixed(d).replace('.',','); }
+function dirText(x,y){ var a=[]; if(Math.abs(y)>=0.05) a.push(fmt(Math.abs(y),1)+' mm '+(y>0?'ylös':'alas')); if(Math.abs(x)>=0.05) a.push(fmt(Math.abs(x),1)+' mm '+(x>0?'oikealle':'vasemmalle')); return a.join(', ')||'keskellä'; }
+function updateUI(){
+  var sh=st.shots, sum=0, dsum=0, xs=0;
+  sh.forEach(function(s){sum+=s.ring; dsum+=s.dec; if(s.X) xs++;});
+  $('sN').textContent=sh.length; $('sSum').textContent=sum+(xs?' ('+xs+'X)':''); $('sDec').textContent=fmt(dsum,1);
+  var pts=sh.map(oriented), g=C.groupStats(pts);
+  if(sh.length){ var l=sh[sh.length-1], lo=oriented(l);
+    $('lastScore').textContent=l.ring?fmt(l.dec,1):'0';
+    $('lastInfo').textContent='Laukaus '+sh.length+(l.X?' · sisäkymppi':'')+' · kello '+C.clockOf(lo.x,lo.y)+' · '+fmt(Math.hypot(l.x,l.y),1)+' mm keskeltä'+(l.manual?' · lisätty käsin':'');
+  } else { $('lastScore').textContent='–'; $('lastInfo').textContent='Ei osumia vielä'; }
+  if(g && sh.length>1){
+    var dist=+S.dist||0, es=g.es-S.cal; // ES reikien keskipisteiden välinen + kaliiperi on ulkomitta; näytetään keskipisteiden väli
+    $('sES').textContent=fmt(g.es,1);
+    $('mpi').textContent='Osumakeskipiste: '+dirText(g.mx,g.my)+' · ryhmä '+fmt(g.es,1)+' mm (keskipisteestä keskipisteeseen)'+(dist?' = '+fmt(g.es/dist,2)+' mrad / '+fmt(g.es/dist*3.438,2)+' MOA':'')+
+      (dist?' · korjaus: '+corr(g.mx,g.my,dist):'');
+  } else { $('sES').textContent='–'; $('mpi').textContent= st.calib? '' : 'Kalibroi taulu, jotta pisteet voidaan laskea.'; }
+  var tb=$('list'); tb.innerHTML='';
+  sh.slice().reverse().forEach(function(s,ri){ var i=sh.length-ri, o=oriented(s), tr=document.createElement('tr');
+    tr.innerHTML='<td>'+i+(s.manual?'*':'')+'</td><td class="r"><b>'+s.ring+(s.X?'x':'')+'</b></td><td class="r">'+fmt(s.dec,1)+'</td><td>kello '+C.clockOf(o.x,o.y)+'</td><td class="r">'+fmt(o.x,1)+' / '+fmt(o.y,1)+'</td>';
+    tb.appendChild(tr); });
+}
+function corr(x,y,dist){ // tarvittava korjaus ryhmän siirtämiseksi keskelle, mrad (1 mrad = 1 mm / 1 m)
+  var h=-x/dist, v=-y/dist, a=[];
+  if(Math.abs(v)>=0.01) a.push(fmt(Math.abs(v),2)+' mrad '+(v>0?'ylös':'alas'));
+  if(Math.abs(h)>=0.01) a.push(fmt(Math.abs(h),2)+' mrad '+(h>0?'oikealle':'vasemmalle'));
+  return a.join(', ')||'ei tarvita';
+}
+
+function canvasPt(ev){
+  var r=cv.getBoundingClientRect(), sx=(ev.clientX-r.left)*cv.width/r.width, sy=(ev.clientY-r.top)*cv.height/r.height, T=viewT();
+  return {x:(sx-T.e)/T.a, y:(sy-T.f)/T.a};
+}
+cv.addEventListener('pointerup',function(ev){
+  if(st.mode==='none'||!st.aw) return;
+  var p=canvasPt(ev);
+  if(st.mode==='calC'){ st.calTmp=p; setMode('calE'); render(); return; }
+  if(st.mode==='calE'){ var r=Math.hypot(p.x-st.calTmp.x,p.y-st.calTmp.y); if(r<5){toast('Napauta kauempaa keskipisteestä.');return;}
+    st.calib={cx:st.calTmp.x,cy:st.calTmp.y,ppm:2*r/target().black}; st.calTmp=null; setMode('none'); st.ref=null; fitView(); recompute(); render(); toast('Kalibroitu käsin ✓'); return; }
+  if(!st.calib){ toast('Kalibroi ensin.'); return; }
+  if(st.mode==='add'){ var m=pxToMm(p.x,p.y); pushShot(m.x,m.y,true); setMode('none'); return; }
+  if(st.mode==='del'){ var best=-1,bd=1e9; st.shots.forEach(function(s,i){var q=mmToPx(s.x,s.y),d=Math.hypot(q.x-p.x,q.y-p.y); if(d<bd){bd=d;best=i;}});
+    if(best>=0 && bd<Math.max(14/st.view.z, holePx()*1.5)){ st.shots.splice(best,1); updateUI(); render(); toast('Osuma poistettu'); } else toast('Osumaa ei löytynyt siitä kohtaa');
+    setMode('none'); }
+});
+
+$('bCam').onclick=startCamera;
+$('bCal').onclick=function(){ $('calibPanel').classList.toggle('show'); };
+$('calAuto').onclick=function(){ $('calibPanel').classList.remove('show'); autoCalib(false); render(); };
+$('calMan').onclick=function(){ $('calibPanel').classList.remove('show'); if(!st.source){toast('Avaa ensin kamera tai ota kuva.');return;} st.view={z:1,cx:st.aw/2,cy:st.ah/2}; setMode('calC'); render(); };
+$('bRef').onclick=function(){ st.ref=null; st.pending=null; if(!st.live&&st.source) st.ref=grab(); toast('Referenssi nollattu – nykyinen kuva on uusi lähtötilanne.'); };
+$('bAdd').onclick=function(){ setMode(st.mode==='add'?'none':'add'); };
+$('bDel').onclick=function(){ setMode(st.mode==='del'?'none':'del'); };
+$('bNew').onclick=function(){
+  if(!st.shots.length){ toast('Sarjassa ei ole osumia.'); return; }
+  var h=LS.get('tt_history',[]), sum=0, dsum=0; st.shots.forEach(function(s){sum+=s.ring;dsum+=s.dec;});
+  h.unshift({t:Date.now(),target:target().name,cal:S.cal,dist:S.dist,sum:sum,dec:Math.round(dsum*10)/10,shots:st.shots.map(function(s){return {x:+s.x.toFixed(2),y:+s.y.toFixed(2),r:s.ring,d:s.dec};})});
+  LS.set('tt_history',h.slice(0,200));
+  st.shots=[]; st.ref=null; if(!st.live&&st.source) st.ref=grab(); updateUI(); render(); toast('Sarja tallennettu ('+sum+' p). Uusi sarja alkaa.');
+};
+$('zIn').onclick=function(){ st.view.z=Math.min(8,st.view.z*1.3); render(); };
+$('zOut').onclick=function(){ st.view.z=Math.max(1,st.view.z/1.3); if(st.view.z===1){st.view.cx=st.aw/2;st.view.cy=st.ah/2;} render(); };
+$('zFit').onclick=function(){ fitView(); render(); };
+// panorointi vetämällä kun zoomattu
+(function(){ var drag=null; cv.addEventListener('pointerdown',function(e){ if(st.mode==='none'&&st.view.z>1) drag={x:e.clientX,y:e.clientY,cx:st.view.cx,cy:st.view.cy}; });
+  window.addEventListener('pointermove',function(e){ if(!drag) return; var r=cv.getBoundingClientRect(), k=cv.width/r.width/st.view.z; st.view.cx=drag.cx-(e.clientX-drag.x)*k; st.view.cy=drag.cy-(e.clientY-drag.y)*k; render(); });
+  window.addEventListener('pointerup',function(){ drag=null; }); })();
+
+/* asetukset */
+var sel=$('oTarget'); Object.keys(C.PRESETS).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=C.PRESETS[k].name; sel.appendChild(o); });
+var oc=document.createElement('option'); oc.value='custom'; oc.textContent='Oma taulu (syötä mitat)'; sel.appendChild(oc);
+function loadSet(){ sel.value=S.target; $('oCal').value=String(S.cal); $('oDist').value=S.dist; $('oThr').value=S.thr; $('vThr').textContent=S.thr; $('oRes').value=String(S.res); $('oInt').value=String(S.interval);
+  $('oFlip').checked=S.flip; $('oSpeak').checked=S.speak; $('oBeep').checked=S.beep; $('oR10').value=S.custom.ring10; $('oStep').value=S.custom.step; $('oBlack').value=S.custom.black; $('oInner').value=S.custom.inner;
+  $('customBox').style.display=S.target==='custom'?'grid':'none'; }
+sel.onchange=function(){ $('customBox').style.display=sel.value==='custom'?'grid':'none'; };
+$('oThr').oninput=function(){ $('vThr').textContent=this.value; };
+$('bSet').onclick=function(){ loadSet(); $('dSet').showModal(); };
+$('setOk').onclick=function(){
+  var oldBlack=target().black, oldRes=+S.res;
+  S.target=sel.value; S.cal=+$('oCal').value; S.dist=+$('oDist').value||0; S.thr=+$('oThr').value; S.res=+$('oRes').value; S.interval=+$('oInt').value;
+  S.flip=$('oFlip').checked; S.speak=$('oSpeak').checked; S.beep=$('oBeep').checked;
+  S.custom={ring10:+$('oR10').value||10,step:+$('oStep').value||10,black:+$('oBlack').value||100,inner:+$('oInner').value||0};
+  save();
+  if(st.calib && target().black!==oldBlack){ st.calib.ppm*=oldBlack/target().black; } // sama musta pikseleinä, eri millimetrit
+  if(S.res!==oldRes && st.srcW){ setupWork(st.srcW,st.srcH); fitView(); }
+  if(st.live){ clearInterval(st.timer); st.timer=setInterval(tick,+S.interval); }
+  recompute(); render(); $('dSet').close();
+};
+
+/* vienti */
+$('bPng').onclick=function(){ if(!st.aw){toast('Ei kuvaa tallennettavaksi');return;} var a=document.createElement('a'); a.download='taulututka-'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')+'.png'; a.href=cv.toDataURL('image/png'); a.click(); };
+$('bCsv').onclick=function(){
+  var rows=[['nro','pisteet','desimaali','sisakymppi','x_mm','y_mm','kello','kasin']];
+  st.shots.forEach(function(s,i){var o=oriented(s); rows.push([i+1,s.ring,s.dec,s.X?1:0,o.x.toFixed(2),o.y.toFixed(2),C.clockOf(o.x,o.y),s.manual?1:0]);});
+  var txt=rows.map(function(r){return r.join(';');}).join('\n');
+  try{ navigator.clipboard.writeText(txt).then(function(){toast('Tulokset kopioitu leikepöydälle (CSV).');},function(){}); }catch(e){}
+  try{ var b=new Blob([txt],{type:'text/csv'}), a=document.createElement('a'); a.download='taulututka.csv'; a.href=URL.createObjectURL(b); a.click(); }catch(e){} };
+$('bHist').onclick=function(){
+  var h=LS.get('tt_history',[]), b=$('histBody');
+  b.innerHTML = h.length? '<table><thead><tr><th>Aika</th><th>Taulu</th><th class="r">Ls</th><th class="r">Pist.</th><th class="r">Des.</th></tr></thead><tbody>'+
+    h.map(function(x){ var d=new Date(x.t); return '<tr><td>'+d.toLocaleDateString('fi-FI')+' '+d.toLocaleTimeString('fi-FI',{hour:'2-digit',minute:'2-digit'})+'</td><td>'+x.target.replace(/ \(ISSF\)/,'')+'</td><td class="r">'+x.shots.length+'</td><td class="r"><b>'+x.sum+'</b></td><td class="r">'+fmt(x.dec,1)+'</td></tr>'; }).join('')+'</tbody></table>'
+    : '<p class="muted">Ei tallennettuja sarjoja. Sarja tallentuu, kun painat Uusi sarja.</p>';
+  $('dHist').showModal(); };
+$('histClear').onclick=function(){ if(confirm('Poistetaanko koko historia?')){ LS.set('tt_history',[]); $('bHist').onclick(); } };
+$('bHelp').onclick=function(){ $('dHelp').showModal(); };
+if(!LS.get('tt_seenHelp',false)){ LS.set('tt_seenHelp',true); setTimeout(function(){ $('dHelp').showModal(); },400); }
+updateUI();
+})();
+</script>
+</body>
+</html>
