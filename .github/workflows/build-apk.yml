@@ -1,0 +1,48 @@
+name: Rakenna APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Asenna riippuvuudet
+        run: npm ci
+
+      - name: Valmistele sovellus
+        run: |
+          mkdir -p www
+          cp index.html www/
+          npx cap add android
+          node muokkaa-android.js
+          npx cap sync android
+
+      - name: Käännä APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Nimeä APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk Taulututka.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Taulututka-apk
+          path: Taulututka.apk
